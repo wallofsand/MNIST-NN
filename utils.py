@@ -1,21 +1,19 @@
 import numpy as np
-from matplotlib import pyplot as plt
-import struct
 
-def test_prediction(network, index, X, Y):
-    """
-    Show a specific input image and output value.
-    """
-    current_image = X[:, index, None]
-    prediction = network.forward_pass(current_image)
-    label = Y[index]
-    print("Prediction:", prediction)
-    print("Label:", label)
-    current_image = current_image.reshape((28, 28)) * 255
-    plt.gray()
-    plt.imshow(current_image, interpolation='nearest')
-    plt.imshow(current_image, interpolation='nearest')
-    plt.show()
+# def test_prediction(network, index, X, Y):
+#     """
+#     Show a specific input image and output value.
+#     """
+#     current_image = X[:, index, None]
+#     prediction = network.forward_pass(current_image)
+#     label = Y[index]
+#     print("Prediction:", prediction)
+#     print("Label:", label)
+#     current_image = current_image.reshape((28, 28)) * 255
+#     plt.gray()
+#     plt.imshow(current_image, interpolation='nearest')
+#     plt.imshow(current_image, interpolation='nearest')
+#     plt.show()
 
 class Layer:
     def forward_prop(self, image):
@@ -24,24 +22,23 @@ class Layer:
         pass
 
 class ConvolutionalLayer(Layer):
-    def __init__(self, kernel_num, kernel_size):
+    def __init__(self, kernel_num, kernel_size, kernel_depth):
         rng = np.random.default_rng()
-        self.kernel_num = kernel_num
-        self.kernel_size = kernel_size
-        self.kernels = rng.standard_normal((kernel_num, kernel_size, kernel_size))/(kernel_size**2)
+        self.kernel_num   = kernel_num
+        self.kernel_size  = kernel_size
+        self.kernel_depth = kernel_depth
+        self.kernels      = rng.standard_normal((kernel_num, kernel_depth, kernel_size, kernel_size))/(kernel_size**2)
 
     def patches_generator(self, image):
         """
         Divide the input image in patches to be used during convolution.
         Yields the tuples containing the patches and their coordinates.
         """
-        # Extract image height and width
-        image_h, image_w = image.shape
         # The number of patches, given an fxf filter is h-f+1 for height and w-f+1 for width
         # For our 3x3 filter and our 28x28 image there are
         # 28 - 3 + 1 = 26 for height and width so 26 * 26 = 676 patches
-        for h in range(image_h - self.kernel_size + 1):
-            for w in range(image_w - self.kernel_size + 1):
+        for h in range(image.shape[0] - self.kernel_size + 1):
+            for w in range(image.shape[1] - self.kernel_size + 1):
                 patch = image[h:(h + self.kernel_size), w:(w + self.kernel_size)]
                 yield patch, h, w
 
@@ -49,15 +46,15 @@ class ConvolutionalLayer(Layer):
         """
         Perform forward propagation for the convolutional layer.
         """
-        self.CL_in = image
-        # Extract image height and width
-        image_h, image_w = self.CL_in.shape
+        self.CL_in = image # stored for backprop
         # Initialize the convolution output volume of the correct size
-        cl_output = np.zeros((image_h-self.kernel_size+1, image_w-self.kernel_size+1, self.kernel_num))
+        cl_output = np.zeros((image.shape[0]-self.kernel_size+1, image.shape[1]-self.kernel_size+1, self.kernel_num))
         # Unpack the generator
         for patch, h, w in self.patches_generator(self.CL_in):
             # Perform convolution for each patch
-            cl_output[h,w] = np.sum(patch*self.kernels, axis=(1,2))
+            for channel in range(image.shape[2]):
+                img = patch[:,:,channel]
+                cl_output[h,w] += np.sum(img*self.kernels[:,channel,:,:], axis=(1,2))
         return cl_output
 
     def backward_prop(self, dE_dY, alpha):
@@ -71,10 +68,12 @@ class ConvolutionalLayer(Layer):
         dE_dk = np.zeros(self.kernels.shape)
         for patch, h, w in self.patches_generator(self.CL_in):
             for f in range(self.kernel_num):
-                dE_dk[f] += patch * dE_dY[h, w, f]
+                for channel in range(patch.shape[2]):
+                    dE_dk[f,channel] += patch[:,:,channel] * dE_dY[h, w, f]
         # Update the parameters
         self.kernels -= alpha*dE_dk
-        return dE_dk
+        # print('CvL dE_dk', dE_dk.T.shape)
+        return dE_dk.T
 
 class MaxPoolingLayer(Layer):
     def __init__(self, kernel_size):
@@ -90,7 +89,7 @@ class MaxPoolingLayer(Layer):
         """
         for h in range(image.shape[0]//self.n):
             for w in range(image.shape[1]//self.n):
-                patch = image[h*self.n:(h+1)*self.n-1, w*self.n:(w+1)*self.n-1]
+                patch = image[h*self.n:(h+1)*self.n, w*self.n:(w+1)*self.n]
                 yield patch, h, w
 
     def forward_prop(self, image):
@@ -110,14 +109,18 @@ class MaxPoolingLayer(Layer):
         There are no weights to update; output is used to update the weights of the previous layer.
         """
         dE_dk = np.zeros(self.MPL_in.shape)
+        # print('MPL_in', self.MPL_in.shape)
         for patch, h, w in self.patches_generator(self.MPL_in):
             image_h, image_w, num_k = patch.shape
             max_val = np.amax(patch, axis=(0,1))
+            # print('patch', patch.shape)
+            # print('dE_dk', dE_dk.shape)
+            # print('dE_dY', dE_dY.shape)
             for idx_h in range(image_h):
                 for idx_w in range(image_w):
                     for idx_k in range(num_k):
                         if patch[idx_h, idx_w, idx_k] == max_val[idx_k]:
-                            dE_dk[h*self.n+idx_h, w*self.n+idx_w, idx_k] = dE_dY[h, w, idx_k]
+                            dE_dk[h*self.n+idx_h, w*self.n+idx_w, idx_k] = np.sum(dE_dY[h, w, idx_k])
             return dE_dk
 
 class SoftmaxLayer(Layer):
@@ -134,7 +137,7 @@ class SoftmaxLayer(Layer):
         self.input_shape = image.shape
         self.input_flat = image.flatten()
         # W * x + b
-        self.output = self.input_flat.dot(self.w) + self.b
+        self.output = np.dot(self.input_flat, self.w) + self.b
         softmax_activation = np.exp(self.output) / np.sum(np.exp(self.output), axis=0)
         return softmax_activation
 
@@ -172,7 +175,7 @@ class Network:
         """
         Pass an image through the model without training.
         """
-        output = image/255.
+        output = image[:,:,np.newaxis]/255
         for layer in self.layers:
             output = layer.forward_prop(output)
         # Compute loss and accuracy
@@ -182,10 +185,8 @@ class Network:
 
     def backprop(self, gradient, alpha=0.05):
         gradient_back = gradient
-        # print(gradient_back)
         for layer in reversed(self.layers):
             gradient_back = layer.backward_prop(gradient_back, alpha)
-            # print(gradient_back)
         return gradient_back
 
     def train(self, image, label, alpha=0.05):
@@ -207,47 +208,25 @@ class Network:
             output, loss_1, accuracy_1 = self.forward_pass(image, label)
             loss += loss_1
             accuracy += accuracy_1
-        print('Test accuracy {}'.format(100*accuracy/len(Y)))
+        print('Test average loss {}, accuracy {}%'.format(loss/len(Y), 100*accuracy/len(Y)))
 
-def CNN_training(X, Y, display=False):
-    num_filters = 16
-    CL = ConvolutionalLayer(num_filters, 3) # layer with 2 3x3 filters, output (26,26,2)
-    MPL = MaxPoolingLayer(2) # pooling layer 2x2, output (13,13,2)
-    SmL = SoftmaxLayer(13*13*num_filters, 10) # softmax layer with 13*13*2 inputs and 10 outputs
-    CNN = Network(layers=[CL,MPL,SmL])
-
-    for epoch in range(4):
-        print('Epoch {} ->'.format(epoch+1))
-        # Shuffle training data
+    def CNN_training(self, trainX, trainY, testX, testY):
+        for epoch in range(4):
+            print('Epoch {} ->'.format(epoch+1))
+            # Shuffle training data
+            permutation = np.random.permutation(1500)
+            X = trainX[permutation]
+            Y = trainY[permutation]
+            loss = 0
+            accuracy = 0
+            for i, (image, label) in enumerate(zip(X, Y)):
+                # print a snapshot of the training
+                if i % 100 == 99:
+                    print("Step {}. For the last 100 steps: average loss {}, accuracy {}".format(i+1, loss/100, accuracy))
+                    loss = 0
+                    accuracy = 0
+                loss_1, accuracy_1 = self.train(image, label)
+                loss += loss_1
+                accuracy += accuracy_1
         permutation = np.random.permutation(1500)
-        X = X[permutation]
-        Y = Y[permutation]
-        loss = 0
-        accuracy = 0
-        for i, (image, label) in enumerate(zip(X, Y)):
-            # print a snapshot of the training
-            if i % 100 == 0:
-                print("Step {}. For the last 100 steps: average loss {}, accuracy {}".format(i+1, loss/100, accuracy))
-                loss = 0
-                accuracy = 0
-            if display == True and i % 1000 == 0:
-                current_image = image/255.
-                CL_output = CL.forward_prop(current_image)
-                MPL_output = MPL.forward_prop(CL_output)
-                prediction = SmL.forward_prop(MPL_output)
-                fig, ax = plt.subplots(num_filters, 4)
-                # Image
-                ax[0][0].imshow(current_image, cmap='gray', interpolation='nearest')
-                # Convolutions
-                for i in range(CL_output.shape[2]):
-                    ax[i][1].imshow(CL_output[:,:,i], cmap='gray', interpolation='nearest')
-                # Max Pooling
-                for i in range(MPL_output.shape[2]):
-                    ax[i][2].imshow(MPL_output[:,:,i], cmap='gray', interpolation='nearest')
-                # Softmax
-                ax[0][3].imshow(prediction[:,np.newaxis], cmap='gray', interpolation='nearest')
-                plt.show()
-            loss_1, accuracy_1 = CNN.train(image, label)
-            loss += loss_1
-            accuracy += accuracy_1
-    return CNN
+        self.test(testX[permutation], testY[permutation])
