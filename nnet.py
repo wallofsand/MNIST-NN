@@ -12,7 +12,8 @@ class Convolutional(Layer):
         self.kernel_size = kernel_size
         self.kernel_channels = input_channels
         self.padding = padding
-        self.kernels = np.random.default_rng().standard_normal((num_kernels, kernel_size, kernel_size, input_channels))
+        kernel_shape = (num_kernels, kernel_size, kernel_size, input_channels)
+        self.kernels = np.random.default_rng().standard_normal(kernel_shape)
     def patches_generator(self, image):
         for h in range(image.shape[0] - self.kernel_size + 1):
             for w in range(image.shape[1] - self.kernel_size + 1):
