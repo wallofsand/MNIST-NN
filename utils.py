@@ -283,9 +283,9 @@ class Network:
             output, loss_1, accuracy_1 = self.forward_pass(image, label)
             loss += loss_1
             accuracy += accuracy_1
-        np.set_printoptions(precision=3)
-        print('Test average loss {}, accuracy {}%'.format(
-            loss/len(Y), 100*accuracy/len(Y)))
+        lossval = loss/len(Y)
+        accval = 100*accuracy/len(Y)
+        print('Test average loss {:.3f}, accuracy {}%'.format(lossval, accval))
     def CNN_training(self, trainX, trainY):
         for epoch in range(4):
             print('Epoch {} ->'.format(epoch+1))
