@@ -52,14 +52,13 @@ class ConvolutionalLayer(Layer):
         self.kernel_size = kernel_size
         self.kernel_depth = kernel_depth
         self.kernels = rng.standard_normal((kernel_num, kernel_depth, kernel_size, kernel_size))/(kernel_size**2)
-
     def save(self):
-        data = ('cvl', [self.kernel_num,
-                        self.kernel_size,
-                        self.kernel_depth,
-                        self.kernels])
+        data = np.array(['cvl',
+                self.kernel_num,
+                self.kernel_size,
+                self.kernel_depth,
+                self.kernels], dtype=object)
         return data
-
     def patches_generator(self, image):
         """
         Divide the input image in patches to be used during convolution.
@@ -72,7 +71,6 @@ class ConvolutionalLayer(Layer):
             for w in range(image.shape[1] - self.kernel_size + 1):
                 patch = image[h:(h + self.kernel_size), w:(w + self.kernel_size)]
                 yield patch, h, w
-
     def forward_prop(self, image):
         """
         Perform forward propagation for the convolutional layer.
@@ -87,7 +85,6 @@ class ConvolutionalLayer(Layer):
                 img = patch[:,:,channel]
                 cl_output[h,w] += np.sum(img*self.kernels[:,channel,:,:], axis=(1,2))
         return cl_output
-
     def backward_prop(self, dE_dY, alpha=0.05):
         """
         Takes the gradient of the loss function with respect to the output and
@@ -112,11 +109,9 @@ class MaxPoolingLayer(Layer):
         Constructor takes as input kernel size (n of an nxn kernel)
         """
         self.n = kernel_size
-
     def save(self):
-        data = ('mpl', self.n)
+        data = np.array(['mpl', self.n], dtype=object)
         return data
-
     def patches_generator(self, image):
         """
         Divide the input image in patches to be used during convolution.
@@ -126,7 +121,6 @@ class MaxPoolingLayer(Layer):
             for w in range(image.shape[1]//self.n):
                 patch = image[h*self.n:(h+1)*self.n, w*self.n:(w+1)*self.n]
                 yield patch, h, w
-
     def forward_prop(self, image):
         # Store for backprop
         self.MPL_in = image
@@ -135,7 +129,6 @@ class MaxPoolingLayer(Layer):
         for patch, h, w in self.patches_generator(self.MPL_in):
             output[h, w] = np.amax(patch, axis=(0, 1))
         return output
-
     def backward_prop(self, dE_dY, alpha=0.05):
         """
         Takes the gradient of the loss function with respect to the output and
@@ -166,13 +159,11 @@ class SoftmaxLayer(Layer):
         rng = np.random.default_rng()
         self.w = rng.standard_normal((input_units, output_units))/input_units
         self.b = np.zeros(output_units)
-
     def save(self):
-        data = ('sml',
-                [self.w,
-                 self.b])
+        data = np.array(['sml',
+                self.w,
+                self.b], dtype=object)
         return data
-
     def forward_prop(self, image):
         # Store for backprop
         self.input_shape = image.shape
@@ -181,7 +172,6 @@ class SoftmaxLayer(Layer):
         self.output = np.dot(self.input_flat, self.w) + self.b
         softmax_activation = np.exp(self.output) / np.sum(np.exp(self.output), axis=0)
         return softmax_activation
-
     def backward_prop(self, dE_dY, alpha=0.05):
         # loss (dE_dY) will be 0 for most cases but...
         for i, gradient in enumerate(dE_dY):
@@ -212,8 +202,8 @@ class ReLuLayer(Layer):
     """
     Take an arbitrary sized input and return the same size output.
     """
-    def save(self, filename):
-        data = ('relu')
+    def save(self):
+        data = np.array(['relu'], dtype=object)
         return data
     def forward_prop(self, input):
         zeros = np.zeros(input.shape)
@@ -225,19 +215,35 @@ class ReLuLayer(Layer):
 class Network:
     def __init__(self, layers:list):
         self.layers = layers
-
     def load(self, filename):
-        data = np.load(filename)
+        data = np.load(filename, allow_pickle=True)
         lst = data.files
         for item in lst:
-            print(item)
-            print(data[item])
-
+            l = data[item]
+            newlayer = Layer()
+            if l[0] == 'cvl':
+                newlayer = ConvolutionalLayer(
+                    kernel_num=l[1],
+                    kernel_size=l[2],
+                    kernel_depth=l[3]
+                )
+                newlayer.kernels = l[4]
+            elif l[0] == 'mpl':
+                newlayer = MaxPoolingLayer(
+                    kernel_size=l[1]
+                )
+            elif l[0] == 'sml':
+                newlayer = SoftmaxLayer(0,0)
+                newlayer.w = l[1]
+                newlayer.b = l[2]
+            elif l[0] == 'relu':
+                newlayer = ReLuLayer()
+            self.layers.append(newlayer)
     def save(self, filename):
-        data = []
-        for layer in self.layers:
-            data.append(layer.save())
-        np.savez(filename, data)
+        data = np.empty(len(self.layers), dtype=np.ndarray)
+        for i, layer in enumerate(self.layers):
+            data[i] = layer.save()
+        np.savez(filename, *data)
     def forward_pass(self, image, label=None):
         """
         Pass an image through the model without training.
@@ -251,20 +257,17 @@ class Network:
         loss = -np.log(output[label])
         accuracy = 1 if np.argmax(output) == label else 0
         return output, loss, accuracy
-
     def backprop(self, gradient):
         gradient_back = gradient
         for layer in reversed(self.layers):
             gradient_back = layer.backward_prop(gradient_back)
         return gradient_back
-
     def train(self, image, label):
         output, loss, accuracy = self.forward_pass(image, label)
         gradient = np.zeros(10)
         gradient[label] = -1/output[label]
         gradient_back = self.backprop(gradient)
         return loss, accuracy
-
     def test(self, testX, testY):
         """
         Test the model on a set of data.
@@ -280,13 +283,14 @@ class Network:
             output, loss_1, accuracy_1 = self.forward_pass(image, label)
             loss += loss_1
             accuracy += accuracy_1
-        print('Test average loss {}, accuracy {}%'.format(loss/len(Y), 100*accuracy/len(Y)))
-
+        np.set_printoptions(precision=3)
+        print('Test average loss {}, accuracy {}%'.format(
+            loss/len(Y), 100*accuracy/len(Y)))
     def CNN_training(self, trainX, trainY):
         for epoch in range(4):
             print('Epoch {} ->'.format(epoch+1))
             # Shuffle training data
-            permutation = np.random.permutation(300)
+            permutation = np.random.permutation(500)
             X = trainX[permutation]
             Y = trainY[permutation]
             loss = 0

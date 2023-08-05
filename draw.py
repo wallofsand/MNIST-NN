@@ -20,20 +20,20 @@ ctypes.windll.shcore.SetProcessDpiAwareness(True)
 # Our Buttons will append themselves to this list
 objects = []
 # Initial color
-drawColor = [0, 0, 0]
+drawColor = [255, 255, 255]
 shadeColor = [150, 150, 150]
 # Initial brush size
 brushSize = 10
 brushSizeSteps = 3
 # Drawing Area Size
-canvasSize = [280, 280]
+canvasSize = [244, 244]
 displaySize = [28, 28]
 # Button Variables.
 buttonWidth = 120
 buttonHeight = 35
 # Canvas
 canvas = pygame.Surface(canvasSize)
-canvas.fill((255, 255, 255))
+canvas.fill((0, 0, 0))
 # Display the shrunken image
 # display = pygame.Surface((28, 28))
 # display.fill((255, 255, 255))
@@ -98,7 +98,7 @@ def save():
 
 # Clear the canvas
 def clear():
-    canvas.fill((255, 255, 255))
+    canvas.fill((0, 0, 0))
     # display.fill((255, 255, 255))
 
 # Pass the image through the network
@@ -113,13 +113,21 @@ def run(network):
     for pair in enumerate(output):
         print(pair)
     print('This looks like', np.argmax(output))
-    show_nn(prcimg, network)
+    # show_nn(prcimg, network)
 
 # resize a 224x224 image to 28x28
+# imctr = 0
 def downsample(image):
+    # global imctr
     small = image
     while small.size > 28**2:
         small = resize.process(small)
+    fig, ax = plt.subplots(3)
+    # ax[0].imshow(image/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
+    # ax[1].imshow(small/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
+    # ax[2].imshow(dataset()[2][imctr]/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
+    # imctr = imctr + 1
+    # plt.show()
     return small
 
 def show_image(image):

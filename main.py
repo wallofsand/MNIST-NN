@@ -2,10 +2,10 @@ from utils import *
 import draw
 
 def main():
-    CvL1 = ConvolutionalLayer(8, 3, 1) # layer with 8 3x3x1 filters, output (26,26,8)
-    MPL1 = MaxPoolingLayer(2) # pooling layer 2x2, output (13,13,8)
-    SmL1 = SoftmaxLayer(13*13*8, 10) # softmax layer with 13*13*8 inputs and 10 outputs
-    CNN = Network([CvL1,MPL1,SmL1])
+    # CvL1 = ConvolutionalLayer(8, 3, 1) # layer with 8 3x3x1 filters, output (26,26,8)
+    # MPL1 = MaxPoolingLayer(2) # pooling layer 2x2, output (13,13,8)
+    # SmL1 = SoftmaxLayer(13*13*8, 10) # softmax layer with 13*13*8 inputs and 10 outputs
+    # CNN = Network([CvL1,MPL1,SmL1])
 
     # CvL1 = ConvolutionalLayer(8, 3, 1) # layer with 8 3x3x1 filters, output (26,26,8)
     # MPL1 = MaxPoolingLayer(2) # pooling layer 2x2, output (13,13,8)
@@ -16,13 +16,15 @@ def main():
     # CNN = Network([CvL1,MPL1,ReLu,CvL2,MPL2,SmL1])
 
     train_data, train_labels, test_data, test_labels = dataset() # input (28,28)
-    CNN.CNN_training(train_data, train_labels)
-    CNN.test(test_data, test_labels)
+    # CNN.CNN_training(train_data, train_labels)
 
     # CNN.save('network')
-    # CNN.load('network.npz')
+    ld = Network([])
+    ld.load('network.npz')
 
-    draw.build_buttons(CNN)
+    # ld.test(test_data, test_labels)
+
+    draw.build_buttons(ld)
     draw.loop()
 
 if __name__ == "__main__":
