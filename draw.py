@@ -3,7 +3,7 @@ import pygame
 import ctypes
 import numpy as np
 from matplotlib import pyplot as plt
-import resize
+from skimage.transform import resize as re
 from utils import *
 
 # Pygame config
@@ -107,26 +107,29 @@ def run(network):
     for col in range(224):
         for row in range(224):
             image[row,col] = canvas.get_at((col,row))[0]
-    prcimg = downsample(image)
+    prcimg = lib_downsample(image)
     output = network.forward_pass(prcimg)
     print('Testing image:')
     for pair in enumerate(output):
         print(pair)
     print('This looks like', np.argmax(output))
-    # show_nn(prcimg, network)
+    show_nn(prcimg, network)
+
+# resize an image using a library method
+def lib_downsample(image):
+    resized_image = re(image, (28, 28), anti_aliasing=True)
+    return resized_image
 
 # resize a 224x224 image to 28x28
-# imctr = 0
 def downsample(image):
-    # global imctr
+    import resize
     small = image
     while small.size > 28**2:
         small = resize.process(small)
-    fig, ax = plt.subplots(3)
+    # fig, ax = plt.subplots(3)
     # ax[0].imshow(image/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
     # ax[1].imshow(small/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
     # ax[2].imshow(dataset()[2][imctr]/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
-    # imctr = imctr + 1
     # plt.show()
     return small
 
