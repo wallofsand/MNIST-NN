@@ -34,9 +34,6 @@ buttonHeight = 35
 # Canvas
 canvas = pygame.Surface(canvasSize)
 canvas.fill((0, 0, 0))
-# Display the shrunken image
-# display = pygame.Surface((28, 28))
-# display.fill((255, 255, 255))
 
 # Button Class
 class Button():
@@ -99,7 +96,6 @@ def save():
 # Clear the canvas
 def clear():
     canvas.fill((0, 0, 0))
-    # display.fill((255, 255, 255))
 
 # Pass the image through the network
 def run(network):
@@ -121,16 +117,13 @@ def lib_downsample(image):
     return resized_image
 
 # resize a 224x224 image to 28x28
+# using this over a library downsample with proper interpolation causes problems
+# TODO: write your own interpolating downsampler
 def downsample(image):
     import resize
     small = image
     while small.size > 28**2:
         small = resize.process(small)
-    # fig, ax = plt.subplots(3)
-    # ax[0].imshow(image/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
-    # ax[1].imshow(small/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
-    # ax[2].imshow(dataset()[2][imctr]/255., cmap='gray', interpolation='nearest', vmin=0, vmax=1)
-    # plt.show()
     return small
 
 def show_image(image):
@@ -199,8 +192,6 @@ def loop():
         # Draw the Canvas at the center of the screen
         x, y = screen.get_size()
         screen.blit(canvas, [x/4 - canvasSize[0]/2, y/2 - canvasSize[1]/2])
-        # Draw the display
-        # screen.blit(display, [3*x/4 - displaySize[0]/2, y/2 - displaySize[1]/2])
         # Drawing with the mouse
         if pygame.mouse.get_pressed()[0]:
             mx, my = pygame.mouse.get_pos()
@@ -213,18 +204,6 @@ def loop():
                 [dx, dy],
                 brushSize
             )
-            # pygame.draw.circle(
-            #     display,
-            #     shadeColor,
-            #     [dx/10, dy/10],
-            #     brushSize/5
-            # )
-            # pygame.draw.circle(
-            #     display,
-            #     drawColor,
-            #     [dx/10, dy/10],
-            #     brushSize/5
-            # )
         # Reference Dot
         pygame.draw.circle(
             screen,

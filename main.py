@@ -29,26 +29,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # i = np.zeros((3,3,2))
-    # i[0,1] = [1,10]
-    # i[0,2] = [2,20]
-    # i[1,0] = [3,30]
-    # i[1,1] = [4,40]
-    # i[1,2] = [5,50]
-    # i[2,0] = [6,60]
-    # i[2,1] = [7,70]
-    # i[2,2] = [8,80]
-
-    # print(i)
-    # print(np.sum(i, axis=2))
-
-    # print('AX0', np.sum(i, axis=0))
-    # print(i[0,0]+i[1,0]+i[2,0])
-    # print(i[0,1]+i[1,1]+i[2,1])
-    # print(i[0,2]+i[1,2]+i[2,2])
-    # print('AX1', np.sum(i, axis=1))
-    # print('AX2', np.sum(i, axis=2))
-    # print(i[0,0]+i[0,1]+i[0,2])
-    # print(i[1,0]+i[1,1]+i[1,2])
-    # print(i[2,0]+i[2,1]+i[2,2])
